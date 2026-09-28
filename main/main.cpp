@@ -8,5 +8,7 @@ extern "C" void app_main(void)
     const int I2C_DELAY_US = 5;                 // Задержка в микросекундах (~100 кГц)
     i2c_gpio_init();    // инициализация пинов для работы I2C
     start_i2c();
+    
+    ssd1306_init();
 
 }

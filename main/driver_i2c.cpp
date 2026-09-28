@@ -68,6 +68,7 @@ void stop_i2c(void) {
 
     // Шаг 2: Поднимаем линию тактирования (SCL) в HIGH (1).
     // Теперь обе линии находятся в разных состояниях: SCL = 1, SDA = 0.
+    gpio_set_level(I2C_SDA_PIN, 1);
     esp_rom_delay_us(I2C_DELAY_US); // Выдерживаем время установки (tSSTOP)
 
     // Шаг 3: Генерация условия STOP.
@@ -112,7 +113,7 @@ void i2c_write_bit(bool bit) {
 void i2c_write_byte(uint8_t byte) {
     // Протокол I2C требует передавать биты в порядке от Старшего (MSB, Bit 7) 
     // к Младшему (LSB, Bit 0). Поэтому цикл идет от 7 вниз до 0.
-    for (int i = 7; i >= 0; i--) {
+    for (int i = 0; i <= 7; i++) {
         
         // МАГИЯ БИТОВЫХ ОПЕРАЦИЙ:
         // 1. (byte & 0x80): Накладываем маску 10000000. Это обнуляет все биты, 
@@ -155,4 +156,8 @@ bool i2c_read_ack(void) {
     esp_rom_delay_us(I2C_DELAY_US);
 
     return ack_received; // true (1) если ACK, false (0) если NACK
+}
+
+void Led_init(){
+    
 }
