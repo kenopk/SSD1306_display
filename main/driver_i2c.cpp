@@ -68,7 +68,7 @@ void stop_i2c(void) {
 
     // Шаг 2: Поднимаем линию тактирования (SCL) в HIGH (1).
     // Теперь обе линии находятся в разных состояниях: SCL = 1, SDA = 0.
-    gpio_set_level(I2C_SDA_PIN, 1);
+    gpio_set_level(I2C_SCL_PIN, 1);
     esp_rom_delay_us(I2C_DELAY_US); // Выдерживаем время установки (tSSTOP)
 
     // Шаг 3: Генерация условия STOP.
@@ -156,8 +156,4 @@ bool i2c_read_ack(void) {
     esp_rom_delay_us(I2C_DELAY_US);
 
     return ack_received; // true (1) если ACK, false (0) если NACK
-}
-
-void Led_init(){
-    
 }

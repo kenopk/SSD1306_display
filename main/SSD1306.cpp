@@ -1,5 +1,8 @@
 #include "SSD1306.h"
 #include "driver_i2c.h"
+#include "ssd1306_commands.h"
+#include "led_WS2812.h"
+#include "esp_rom_sys.h"
 
 void ssd1306_init(){
     // выключение хороший тон
@@ -34,7 +37,7 @@ void ssd1306_init(){
    
     // Disably entire / display on
     ssd1306_send_command(SSD1306_ENTIRE_DISPLAY_ON);
-    esp_rom_delay_ms(1000 * 3); // 3 секунды
+    esp_rom_delay_us(3000 * 1000); // 3 секунды
     ssd1306_send_command(SSD1306_NORMAL_DISPLAY);
 
     // Set normal colar display
@@ -60,7 +63,7 @@ void ssd1306_send_command(uint8_t command) {
     i2c_write_byte(0x00);  // следующий байт будет командой (0x00)
     if (!check_ack(2)) return;
     i2c_write_byte(command);  // Отправка команды
-    if (!check_ack(2)) return;
+    if (!check_ack(3)) return;
     stop_i2c();
 }
 
