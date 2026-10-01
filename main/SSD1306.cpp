@@ -36,8 +36,8 @@ void ssd1306_init(){
     ssd1306_send_command(0x7F);
    
     // Disably entire / display on
-    ssd1306_send_command(SSD1306_ENTIRE_DISPLAY_ON);
-    esp_rom_delay_us(3000 * 1000); // 3 секунды
+    //ssd1306_send_command(SSD1306_ENTIRE_DISPLAY_ON);
+    //esp_rom_delay_us(3000 * 1000); // 3 секунды
     ssd1306_send_command(SSD1306_NORMAL_DISPLAY);
 
     // Set normal colar display
@@ -53,6 +53,11 @@ void ssd1306_init(){
 
     // Display on
     ssd1306_send_command(SSD1306_DISPLAY_ON);
+
+    // test color
+    ssd1306_send_command(SSD1306_ENTIRE_DISPLAY_ON);
+    esp_rom_delay_us(1500 * 1000); // 1,5 секунды
+    ssd1306_send_command(SSD1306_NORMAL_DISPLAY);
 
 }
 
