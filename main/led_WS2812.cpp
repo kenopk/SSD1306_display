@@ -16,7 +16,14 @@
 #define T_BIT ((1250*CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ)/1000) // 1,25 мкс = (1250 * 160) / 1000 = 200 тактов
 #define T_RESET_US 80 // 80 мкс 
 
+#define BLINK_ON_MS 200
+#define BLINK_OFF_MS 200
+#define BLINK_PAUSE_MS 1000
+
 constexpr uint32_t LED_MASK = 1u << LED_PIN;
+static portMUX_TYPE ws_mux = portMUX_INITIALIZER_UNLOCKED;
+
+static uint8_t blink_brightness(uint8_t color, uint8_t brightness);
 
 static void ws_send_bit(bool bit) {
     uint32_t start_cycle = esp_cpu_get_cycle_count();
@@ -31,11 +38,26 @@ static void ws_send_bit(bool bit) {
     }
 }
 
-static void led_set_color(uint8_t r, uint8_t g, uint8_t b) {
-    // TODO
-}
+static void led_set_color(uint8_t r, uint8_t g, uint8_t b, uint8_t brightness) {
+    
+    // WS2812 GRB with brightness adjustment
+    uint32_t r_bright = blink_brightness(r, brightness);
+    uint32_t g_bright = blink_brightness(g, brightness);
+    uint32_t b_bright = blink_brightness(b, brightness);
 
-// ---- публичная часть (объявлена в .h) ----
+    g_bright = g_bright << 16;        // зелёный сдвинули на 16 бит влево (то же, что × 65536)
+    r_bright = r_bright << 8;         // красный на 8 бит влево (то же, что × 256)
+
+    uint32_t grb = g_bright | r_bright | b_bright;   // склеили всё в одно число
+
+    portENTER_CRITICAL(&ws_mux);
+    for (int i = 23; i >= 0; --i) {
+        ws_send_bit((grb >> i) & 1);
+    }
+    portEXIT_CRITICAL(&ws_mux);
+
+    esp_rom_delay_us(T_RESET_US);          // RES ≥ 50 мкс: светодиод защёлкивает цвет
+}
 
 void led_init() {
     gpio_reset_pin(gpio_num_t(LED_PIN));
@@ -44,5 +66,16 @@ void led_init() {
 }
 
 void blink_error(int8_t error_code) {
-    // TODO
+    uint8_t brightness = 125; // яркость мигания (0-255)
+    for(int i = 0; i < error_code; ++i) {
+        led_set_color(255, 100, 20, brightness);
+        vTaskDelay(pdMS_TO_TICKS(BLINK_ON_MS));
+        led_set_color(0, 0, 0, 0);   // выключить
+        vTaskDelay(pdMS_TO_TICKS(BLINK_OFF_MS));
+    }
+    vTaskDelay(pdMS_TO_TICKS(BLINK_PAUSE_MS));
+}
+
+static uint8_t blink_brightness(uint8_t color, uint8_t brightness) {
+    return color = (color * brightness) / 255;
 }
