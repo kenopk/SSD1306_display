@@ -3,6 +3,13 @@
 #include "ssd1306_commands.h"
 #include "led_WS2812.h"
 #include "esp_rom_sys.h"
+#include <string.h>  // memset
+
+static void ssd1306_clear_ram();
+static void ssd1306_send_command(uint8_t command);
+static void ssd1306_send_data(uint8_t data);
+static bool check_ack(int8_t error_code);
+static void ssd1306_set_window(uint8_t col_start, uint8_t col_end, uint8_t page_start, uint8_t page_end);
 
 void ssd1306_init(){
     // выключение хороший тон
@@ -51,39 +58,62 @@ void ssd1306_init(){
     ssd1306_send_command(SSD1306_CHARGE_PUMP);
     ssd1306_send_command(0x14);
 
+    // Clear RAM
+    ssd1306_send_command(SSD1306_SET_ADDR_MODE);
+    ssd1306_send_command(SSD1306_ADDR_HORIZONTAL);
+    ssd1306_clear_ram();
+
     // Display on
     ssd1306_send_command(SSD1306_DISPLAY_ON);
 
     // test color
     ssd1306_send_command(SSD1306_ENTIRE_DISPLAY_ON);
-    esp_rom_delay_us(1500 * 1000); // 1,5 секунды
+    esp_rom_delay_us(500 * 1000); // 0.5 секунды
     ssd1306_send_command(SSD1306_NORMAL_DISPLAY);
 
 }
 
-void ssd1306_send_command(uint8_t command) {
+void static ssd1306_send_command(uint8_t command) {
     start_i2c();  // Начало передачи I2C
     i2c_write_byte(0x78);  // Адрес дисплея SSD1306 с записью (0x3C << 1)
-    if (!check_ack(1)) return;
+    if (!check_ack(1)){
+        //printf("Send command error: 0x%02X\n", command);
+        return; // Если ACK не получен, выходим из функции, не отправляя команду
+    }
     i2c_write_byte(0x00);  // следующий байт будет командой (0x00)
-    if (!check_ack(2)) return;
+    if (!check_ack(2)){
+        //printf("Send command error: 0x%02X\n", command);
+        return; // Если ACK не получен, выходим из функции, не отправляя команду
+    }
     i2c_write_byte(command);  // Отправка команды
-    if (!check_ack(3)) return;
+    if (!check_ack(3)){
+        //printf("Send command error: 0x%02X\n", command);
+        return; // Если ACK не получен, выходим из функции, не отправляя команду
+    }
     stop_i2c();
 }
 
-void ssd1306_send_data(uint8_t data) {
+void static ssd1306_send_data(uint8_t data) {
     start_i2c();  // Начало передачи I2C
     i2c_write_byte(0x78);  // Адрес дисплея SSD1306 с записью (0x3C << 1)
-    if (!check_ack(4)) return;
+    if (!check_ack(4)){
+        //printf("Send data error: 0x%02X\n", data);
+        return;
+    }
     i2c_write_byte(0x40);  // следующий байт будет данными (0x40)
-    if (!check_ack(5)) return;
+    if (!check_ack(5)){
+        //printf("Send data error: 0x%02X\n", data);
+        return;
+    }
     i2c_write_byte(data);  // Отправка данных
-    if (!check_ack(6)) return; 
+    if (!check_ack(6)){
+        //printf("Send data error: 0x%02X\n", data);
+        return;
+    }
     stop_i2c();
 }
 
-bool check_ack(int8_t error_code) {
+bool static check_ack(int8_t error_code) {
     if (!i2c_read_ack()) { 
         blink_error(error_code); // Мигаем нужное количество раз
         stop_i2c();              // Обязательно закрываем шину при ошибке!
@@ -91,3 +121,54 @@ bool check_ack(int8_t error_code) {
     }
     return true; // Всё хорошо, можно продолжать
 }
+
+uint8_t static screen_buffer[SSD1306_WIDTH * SSD1306_PAGES]; // Буфер для хранения данных экрана (128*32/8 = 512 байт)
+
+static void ssd1306_clear_ram(){
+    ssd1306_set_window(0, SSD1306_WIDTH - 1, 0, SSD1306_PAGES - 1);
+    for (uint16_t i = 0; i < SSD1306_WIDTH * SSD1306_PAGES; ++i) {
+        ssd1306_send_data(0x00); // Заполняем нулями
+    }
+}
+
+void ssd1306_clear_buffer(){
+    memset(screen_buffer, 0, sizeof(screen_buffer));
+}
+
+static void ssd1306_set_window(uint8_t col_start, uint8_t col_end, uint8_t page_start, uint8_t page_end){
+    ssd1306_send_command(SSD1306_SET_COLUMN_ADDR);
+    ssd1306_send_command(col_start); // Начальный столбец
+    ssd1306_send_command(col_end); // Конечный столбец
+
+    ssd1306_send_command(SSD1306_SET_PAGE_ADDR);
+    ssd1306_send_command(page_start); // Начальная страница
+    ssd1306_send_command(page_end); // Конечная страница
+}
+
+void ssd1306_draw_pixel(uint8_t x, uint8_t y, bool color) {
+if (x >= SSD1306_WIDTH || y >= SSD1306_HEIGHT) {
+        return; // Выход, если координаты за пределами экрана
+    }
+    uint16_t index_byte = x+(y/8)*SSD1306_WIDTH;
+    uint8_t index_bit = y % 8;
+    if(color) {
+        screen_buffer[index_byte] |= (1 << index_bit); // Устанавливаем бит
+    } else {
+        screen_buffer[index_byte] &= ~(1 << index_bit); // Сбрасываем бит
+    }
+}
+
+void ssd1306_draw_rect(uint8_t col_start, uint8_t col_end, uint8_t page_start, uint8_t page_end, uint8_t color) {
+    ssd1306_set_window(col_start, col_end, page_start, page_end);
+    for (uint16_t i = 0; i < (col_end - col_start + 1) * (page_end - page_start + 1); ++i) {
+        ssd1306_send_data(color);
+    }
+}
+
+void ssd1306_update(){
+    ssd1306_set_window(0, SSD1306_WIDTH - 1, 0, SSD1306_PAGES - 1);
+    for (uint16_t i = 0; i < SSD1306_WIDTH * SSD1306_PAGES; ++i) {
+        ssd1306_send_data(screen_buffer[i]);
+    }
+}
+

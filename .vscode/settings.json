@@ -32,6 +32,6 @@
     "--query-driver=**",
     "--compile-commands-dir=c:\\Users\\second\\mini_display\\build"
   ],
-  "idf.port": "COM8",
-  "idf.flashType": "JTAG"
+  "idf.port": "COM9",
+  "idf.flashType": "UART"
 }

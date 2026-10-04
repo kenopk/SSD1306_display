@@ -77,5 +77,5 @@ void blink_error(int8_t error_code) {
 }
 
 static uint8_t blink_brightness(uint8_t color, uint8_t brightness) {
-    return color = (color * brightness) / 255;
+    return (color * brightness) / 255;
 }
