@@ -23,6 +23,8 @@
 constexpr uint32_t LED_MASK = 1u << LED_PIN;
 static portMUX_TYPE ws_mux = portMUX_INITIALIZER_UNLOCKED;
 
+static void ws_send_bit(bool bit);
+static void led_set_color(uint8_t r, uint8_t g, uint8_t b, uint8_t brightness);
 static uint8_t blink_brightness(uint8_t color, uint8_t brightness);
 
 static void ws_send_bit(bool bit) {

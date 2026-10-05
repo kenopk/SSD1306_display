@@ -15,6 +15,5 @@ const int I2C_DELAY_US = 20;                 // Задержка в микрос
 void i2c_gpio_init(void);
 void start_i2c(void);
 void stop_i2c(void);
-void i2c_write_bit(bool bit);  // Передача одного бита
 void i2c_write_byte(uint8_t byte);  // Передача одного байта
 bool i2c_read_ack(void);

@@ -10,6 +10,7 @@ static void ssd1306_send_command(uint8_t command);
 static void ssd1306_send_data(uint8_t data);
 static bool check_ack(int8_t error_code);
 static void ssd1306_set_window(uint8_t col_start, uint8_t col_end, uint8_t page_start, uint8_t page_end);
+static int abs_int(int a);
 
 void ssd1306_init(){
     // выключение хороший тон
@@ -36,18 +37,18 @@ void ssd1306_init(){
 
     // Set COM pins
     ssd1306_send_command(SSD1306_SET_COM_PINS);  // назначение реальных пинов
-    ssd1306_send_command(0x02);     // для болшинства 128*32 дисплеев
+    ssd1306_send_command(0x02);     // для большинства 128*32 дисплеев
 
     // Set Contrast Control
     ssd1306_send_command(SSD1306_SET_CONTRAST);
     ssd1306_send_command(0x7F);
    
-    // Disably entire / display on
+    // Disable entire display on
     //ssd1306_send_command(SSD1306_ENTIRE_DISPLAY_ON);
     //esp_rom_delay_us(3000 * 1000); // 3 секунды
     ssd1306_send_command(SSD1306_NORMAL_DISPLAY);
 
-    // Set normal colar display
+    // Set normal color display
     ssd1306_send_command(SSD1306_NORMAL_COLOR);
 
     // Set Osc Frequency
@@ -158,10 +159,79 @@ if (x >= SSD1306_WIDTH || y >= SSD1306_HEIGHT) {
     }
 }
 
-void ssd1306_draw_rect(uint8_t col_start, uint8_t col_end, uint8_t page_start, uint8_t page_end, uint8_t color) {
-    ssd1306_set_window(col_start, col_end, page_start, page_end);
-    for (uint16_t i = 0; i < (col_end - col_start + 1) * (page_end - page_start + 1); ++i) {
-        ssd1306_send_data(color);
+void ssd1306_draw_area(uint8_t start_coord_x, uint8_t start_coord_y, uint8_t end_coord_x, uint8_t end_coord_y, bool color) {
+    if (start_coord_x >= SSD1306_WIDTH  || start_coord_y >= SSD1306_HEIGHT || end_coord_x >= SSD1306_WIDTH || end_coord_y >= SSD1306_HEIGHT) {
+        return; // Выход, если координаты за пределами экрана
+    }
+    if (start_coord_x > end_coord_x ) {
+        start_coord_x = start_coord_x + end_coord_x;
+        end_coord_x = start_coord_x - end_coord_x;
+        start_coord_x = start_coord_x - end_coord_x;
+    }
+    if (start_coord_y > end_coord_y ) {
+        start_coord_y = start_coord_y + end_coord_y;
+        end_coord_y = start_coord_y - end_coord_y;
+        start_coord_y = start_coord_y - end_coord_y;
+    }
+    for(uint8_t y = start_coord_y; y <= end_coord_y; ++y) {
+        for(uint8_t x = start_coord_x; x <= end_coord_x; ++x) {
+            ssd1306_draw_pixel(x, y, color);
+        }
+    }
+}
+
+static int abs_int(int a) {
+    if (a < 0) {
+        a = -a;
+    }
+    return a;
+}
+
+void ssd1306_draw_line( int start_coord_x, int start_coord_y, int end_coord_x, int end_coord_y){
+    int dx =abs_int(end_coord_x - start_coord_x); // расстояние по x
+    int dy =-abs_int(end_coord_y - start_coord_y); // расстояние по y
+    int sx = (start_coord_x < end_coord_x) ? 1 : -1;  // в какую сторону шагать по X
+    int sy = (start_coord_y < end_coord_y) ? 1 : -1;  // в какую сторону шагать по Y
+    int err = dx + dy; 
+    int e2;
+    while (true) {  
+        ssd1306_draw_pixel(start_coord_x, start_coord_y, 1); // рисуем пиксель
+        if (start_coord_x == end_coord_x && start_coord_y == end_coord_y) break;
+        e2 = 2 * err;
+        if (e2 >= dy) { 
+            err += dy; 
+            start_coord_x += sx; 
+        }
+        if (e2 <= dx) { 
+            err += dx; 
+            start_coord_y += sy; 
+        }
+    }
+}
+
+void ssd1306_draw_circle(int center_x, int center_y, int radius) {
+    int x = radius;        // начинаем справа от центра
+    int y = 0;             // на уровне центра
+    int err = 1 - radius;  // весы: внутри мы круга или снаружи
+
+    while (x >= y) {       // пока не дошли до диагонали (45°)
+        // одна точка → 8 отражений
+        ssd1306_draw_pixel(center_x + x, center_y + y, 1);
+        ssd1306_draw_pixel(center_x + y, center_y + x, 1);
+        ssd1306_draw_pixel(center_x - y, center_y + x, 1);
+        ssd1306_draw_pixel(center_x - x, center_y + y, 1);
+        ssd1306_draw_pixel(center_x - x, center_y - y, 1);
+        ssd1306_draw_pixel(center_x - y, center_y - x, 1);
+        ssd1306_draw_pixel(center_x + y, center_y - x, 1);
+        ssd1306_draw_pixel(center_x + x, center_y - y, 1);
+
+        y++;                           // по Y шагаем ВСЕГДА
+        if (err < 0) {                 // точка ещё внутри круга
+            err += 2 * y + 1;          // x не трогаем
+        } else {                       // вылезли наружу
+            x--;                       // шаг по X внутрь
+            err += 2 * (y - x) + 1;
+        }
     }
 }
 

@@ -16,5 +16,11 @@ void ssd1306_draw_pixel(uint8_t x, uint8_t y, bool color);
 // Отправка буфера на дисплей
 void ssd1306_update();
 
-// Пишет напрямую в дисплей, в обход буфера (координаты в страницах)
-void ssd1306_draw_rect(uint8_t col_start, uint8_t col_end, uint8_t page_start, uint8_t page_end, uint8_t color);
+// заливка прямоугольной области на дисплее (черный или белый)
+void ssd1306_draw_area(uint8_t start_coord_x, uint8_t start_coord_y, uint8_t end_coord_x, uint8_t end_coord_y, bool color);
+
+// линия от (start) до (end), алгоритм Брезенхэма
+void ssd1306_draw_line(int start_coord_x, int start_coord_y, int end_coord_x, int end_coord_y);
+
+// окружность с центром (center_x, center_y) и радиусом radius
+void ssd1306_draw_circle(int center_x, int center_y, int radius);
