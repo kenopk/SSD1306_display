@@ -6,6 +6,7 @@
 #include "ssd1306_commands.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "images.h"
 
 
 extern "C" void app_main(void)
@@ -47,4 +48,10 @@ extern "C" void app_main(void)
         rest = ssd1306_draw_text(0, 0, rest);   // следующая страница с самого верха
         ssd1306_update();
     }
+
+    ssd1306_clear_buffer(); // очищаем буфер экрана
+    ssd1306_update();
+    ssd1306_draw_area(0, 0, SSD1306_WIDTH-1, SSD1306_HEIGHT-1, 1); // заливка всего экрана белым
+    ssd1306_draw_bitmap(48, 0, panda_test, 32, 32); // рисуем картинку в буфер
+    ssd1306_update(); // отправляем готовый кадр на дисплей одним раз
 }

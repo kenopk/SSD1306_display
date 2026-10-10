@@ -297,3 +297,15 @@ const char *ssd1306_draw_text(uint8_t x, uint8_t y, const char *text) {
     }
     return NULL;  // всё поместилось
 }
+
+void ssd1306_draw_bitmap(uint8_t x, uint8_t y, const uint8_t *bitmap, uint8_t width, uint8_t height) {
+    uint8_t bytes_per_row = (width + 7) / 8; // количество байт на строку (округление вверх)
+    for (uint8_t row = 0; row < height; ++row) {
+        for (uint8_t col = 0; col < width; ++col) {
+            uint16_t byte_index = row * bytes_per_row + (col / 8);
+            uint8_t bit_index = 7 - (col % 8); // биты в байте идут от старшего к младшему
+            bool pixel_on = (bitmap[byte_index] & (1 << bit_index)) != 0;
+            ssd1306_draw_pixel(x + col, y + row, pixel_on);
+        }
+    }
+}
