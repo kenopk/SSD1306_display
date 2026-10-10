@@ -4,7 +4,8 @@
 #include "led_WS2812.h"
 #include "esp_rom_sys.h"
 #include "ssd1306_commands.h"
-
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 
 
 extern "C" void app_main(void)
@@ -35,4 +36,15 @@ extern "C" void app_main(void)
     ssd1306_draw_circle(98, 16, 14);
 
     ssd1306_update(); // отправляем готовый кадр на дисплей одним разом
+
+    ssd1306_clear_buffer(); // очищаем буфер экрана
+    const char *rest = ssd1306_draw_text(0, 0, "матвей лох");
+    ssd1306_update();
+
+    while (rest) {                              // пока есть непоказанный остаток
+        vTaskDelay(pdMS_TO_TICKS(2000));        // даём прочитать страницу
+        ssd1306_clear_buffer();
+        rest = ssd1306_draw_text(0, 0, rest);   // следующая страница с самого верха
+        ssd1306_update();
+    }
 }

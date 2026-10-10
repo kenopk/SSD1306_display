@@ -24,3 +24,6 @@ void ssd1306_draw_line(int start_coord_x, int start_coord_y, int end_coord_x, in
 
 // окружность с центром (center_x, center_y) и радиусом radius
 void ssd1306_draw_circle(int center_x, int center_y, int radius);
+
+// Отрисовка символов и текста (использует шрифт из font_8x10.h)
+const char *ssd1306_draw_text(uint8_t x, uint8_t y, const char *text);

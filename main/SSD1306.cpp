@@ -4,7 +4,14 @@
 #include "led_WS2812.h"
 #include "esp_rom_sys.h"
 #include <string.h>  // memset
+#include "font_8x10.h"
 
+// константы для работы с текстом на дисплее
+#define TEXT_CHARS_PER_LINE (SSD1306_WIDTH / FONT_WIDTH_CHAR) // количество символов в строке текста
+#define TEXT_LINES_PER_SCREEN (SSD1306_HEIGHT / FONT_STRING_HEIGHT) // количество строк текста на экране
+#define TEXT_PAGE_DELAY_MS 2000
+
+static void ssd1306_draw_char(uint8_t x, uint8_t y, uint32_t cp);
 static void ssd1306_clear_ram();
 static void ssd1306_send_command(uint8_t command);
 static void ssd1306_send_data(uint8_t data);
@@ -242,3 +249,51 @@ void ssd1306_update(){
     }
 }
 
+static void ssd1306_draw_char(uint8_t x, uint8_t y, uint32_t cp) {
+    const uint8_t *glyph = font_get_glyph(cp);  // неизвестный символ -> '?'
+    for (uint8_t row = 0; row < FONT_HEIGHT_CHAR; ++row) {
+        uint8_t row_data = glyph[row];
+        for (uint8_t col = 0; col < FONT_WIDTH_CHAR; ++col) {
+            bool pixel_on = (row_data & (1 << (7 - col))) != 0;
+            ssd1306_draw_pixel(x + col, y + row, pixel_on);
+        }
+    }
+}
+
+// Рисует текст в буфер с переносом по ширине и по '\n'.
+// Возвращает NULL, если весь текст поместился,
+// или указатель на первый символ, который не влез (остаток текста).
+const char *ssd1306_draw_text(uint8_t x, uint8_t y, const char *text) {
+    const uint8_t start_x = x;
+
+    // Не влезает даже один символ: ничего не рисуем, весь текст — остаток
+    if (start_x + FONT_WIDTH_CHAR > SSD1306_WIDTH || y + FONT_HEIGHT_CHAR > SSD1306_HEIGHT) {
+        return text;
+    }
+
+    while (*text) {
+        const char *char_start = text;      // запоминаем начало символа (на случай, если он не влезет)
+        uint32_t cp = utf8_next(&text);
+
+        // 1. Перенос строки: '\n' или символ не влезает справа
+        bool newline = (cp == '\n');
+        if (newline || x + FONT_WIDTH_CHAR > SSD1306_WIDTH) {
+            x = start_x;
+            y += FONT_STRING_HEIGHT;
+        }
+
+        // 2. '\n' только переносит, сам не рисуется и экран не заканчивает
+        if (newline) {
+            continue;
+        }
+
+        // 3. Есть реальный символ, но он уже не влезает по высоте: отдаём остаток
+        if (y + FONT_HEIGHT_CHAR > SSD1306_HEIGHT) {
+            return char_start;
+        }
+
+        ssd1306_draw_char(x, y, cp);
+        x += FONT_WIDTH_CHAR;
+    }
+    return NULL;  // всё поместилось
+}
